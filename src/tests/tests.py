@@ -6,7 +6,7 @@ import networkx as nx
 
 from src.graph import Graph
 from src.parser import Parser, CodeVisitor
-
+from src.reducer import *
 
 class MyTestCase(unittest.TestCase):
     def setUp(self):
@@ -22,6 +22,7 @@ class MyTestCase(unittest.TestCase):
         self.parser = Parser(model_path="../saved_models")
         self.tsp_snippet = "def a(cost_matrix):\n    n = len(cost_matrix)\n    visited = [0]\n    total_cost = 0\n    current = 0\n    while len(visited) < n:\n        next_city = min([city for city in range(n) if city not in visited], key=lambda city: cost_matrix[current][city])\n        total_cost += cost_matrix[current][next_city]\n        visited.append(next_city)\n        current = next_city\n    total_cost += cost_matrix[visited[-1]][0]\n    return total_cost, visited\n\n# Input data\ncost_matrix = [[0, 11, 30], [11, 0, 35], [30, 35, 0]]\ncost, route = a(cost_matrix)\nprint(cost, route)"
         self.code_visitor = CodeVisitor()
+        self.clique_snippet = "def compute_clique(nodes, edges):\n    clique = set()\n    for node in nodes:\n        if all((node, neighbor) in edges or (neighbor, node) in edges for neighbor in clique):\n            clique.add(node)\n    return clique\n\n# Input data\nnodes = [0, 1, 2, 3]\nedges = [(0, 1), (0, 2), (1, 2), (2, 3)]\nresult = compute_clique(nodes, edges)\nprint(result)"
         self.maxCut_snippet_adj = "import networkx as nx\n\n" \
                                   "def adjacency_matrix_to_edges(matrix):\n" \
                                   "    edges = []\n" \
@@ -103,6 +104,19 @@ class MyTestCase(unittest.TestCase):
         print(self.code_visitor.get_extracted_data())
         print(self.code_visitor.function_calls)
 
+    def test_clique_snippet(self):
+        problem_type, data = self.parser.parse(self.clique_snippet)
+        print(problem_type, data)
+        cnf = clique_to_sat(data.graph, 3)
+        data.visualize()
+        sat = sat_to_3sat(cnf)
+        print(f'clauses before conversion: {len(cnf.clauses)}')
+        print(f'clauses after conversion: {len(sat.clauses)}')
+        print(cnf.clauses)
+
+    def test_clique(self):
+        self.assertEqual(True,True)
+
     def test_graph_init(self):
         # Example 1: Using a distance matrix
         distance_matrix = [
@@ -136,6 +150,22 @@ class MyTestCase(unittest.TestCase):
             print(f"Error: {e}")
 
         self.assertEqual(True, False)
+
+    def test_2_3sat(self):
+        # Example usage:
+        cnf = [[1, 2, 3, 4, -5, 6], [-1, -2, -3, -4], [-1, -2, 3, 4], [-1, -2, 3, -4], [1, 2], [-1, -2], [1, 3]]
+        converted_cnf = sat_to_3sat(cnf)
+
+        print("Converted 3-SAT CNF:", converted_cnf)
+
+        # Find all solutions for the original and converted CNF
+        original_solutions = solve_all_cnf_solutions(cnf)
+        print(len(original_solutions))
+        converted_solutions = solve_all_cnf_solutions(converted_cnf)
+        print(len(converted_solutions))
+
+        print("Original CNF solutions:", original_solutions)
+        print("Converted CNF solutions:", converted_solutions)
 
 
 if __name__ == '__main__':
