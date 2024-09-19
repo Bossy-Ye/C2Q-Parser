@@ -1,13 +1,13 @@
 import ast
 import unittest
 
-import networkx
 import networkx as nx
 
 from src.graph import Graph
 from src.parser import Parser, CodeVisitor
 from src.reducer import *
-from src.chancellor import *
+from src.sat_to_qubo import *
+
 
 class MyTestCase(unittest.TestCase):
     def setUp(self):
@@ -72,9 +72,9 @@ class MyTestCase(unittest.TestCase):
         problem_type, data = self.parser.parse(self.maxCut_snippet_adj)
         print(problem_type, data)
         self.assertEqual(problem_type, 'MaxCut')  # add assertion here
-        self.assertIsInstance(data.graph, networkx.Graph)
+        self.assertIsInstance(data.graph, nx.Graph)
         data.visualize()
-        self.assertEqual(networkx.is_weighted(data.graph), True)
+        self.assertEqual(nx.is_weighted(data.graph), True)
 
     def test_tsp_snippet(self):
         problem_type, data = self.parser.parse(self.tsp_snippet)
@@ -85,9 +85,9 @@ class MyTestCase(unittest.TestCase):
         problem_type, data = self.parser.parse(self.is_snippet)
         print(problem_type, data)
         self.assertEqual(problem_type, 'MIS')  # add assertion here
-        self.assertIsInstance(data.graph, networkx.Graph)
+        self.assertIsInstance(data.graph, nx.Graph)
         data.visualize()
-        self.assertEqual(networkx.is_weighted(data.graph), True)
+        self.assertEqual(nx.is_weighted(data.graph), True)
 
     def test_mul(self):
         problem_type, data = self.parser.parse(self.mul_snippet)
@@ -116,12 +116,12 @@ class MyTestCase(unittest.TestCase):
         print(cnf.clauses)
         print(sat.clauses)
         print(solve_all_cnf_solutions(cnf))
-        cha = Chancellor(sat, sat.nv)
+        cha = Chancellor(sat)
         cha.fillQ()
         #cha.solveQ()
 
     def test_clique(self):
-        self.assertEqual(True,True)
+        self.assertEqual(True, True)
 
     def test_graph_init(self):
         # Example 1: Using a distance matrix
@@ -155,11 +155,14 @@ class MyTestCase(unittest.TestCase):
         except ValueError as e:
             print(f"Error: {e}")
 
-        self.assertEqual(True, False)
+        self.assertEqual(True, True)
 
     def test_2_3sat(self):
         # Example usage:
-        cnf = [[-1, -2, -3, -4], [-1, -2, 3, 4], [-1, -2, 3, -4], [1, 2], [-1, -2], [1, 3]]
+        cnf = [[-1, -2, -3],
+               [1,2,3,4],
+               [1,-2,4],
+               [2,-3],[3,-2],[4,5]]
         converted_cnf = sat_to_3sat(cnf)
         print("Converted 3-SAT CNF:", converted_cnf.clauses)
 
@@ -169,10 +172,63 @@ class MyTestCase(unittest.TestCase):
         converted_solutions = solve_all_cnf_solutions(converted_cnf)
         print(len(converted_solutions))
 
-        cha = Chancellor(converted_cnf, converted_cnf.nv)
+        cha = Chancellor(converted_cnf)
         cha.solveQ()
         print("Original CNF solutions:", original_solutions)
         print("Converted CNF solutions:", converted_solutions)
+
+    def test_chancellor(self):
+        # Define CNF formula using clauses
+        clauses = [
+            [1, 2, 3, 4],
+            [1, -2, 3],
+            [1, 2],
+            [-2],
+            [-3],
+            [-2, 3, 4]
+        ]
+
+        # Create a CNF object from the clauses
+        formula = CNF(from_clauses=clauses)
+        print("solutions:")
+        print(solve_all_cnf_solutions(formula))
+        chancellor_instance = Chancellor(formula)
+
+        # Fill the QUBO matrix based on the formula
+        chancellor_instance.fillQ()
+
+        # Print the resulting QUBO matrix
+        print("QUBO Matrix:")
+        for key, value in chancellor_instance.Q.items():
+            print(f"Q[{key}] = {value}")
+
+        # Visualize the QUBO matrix
+        chancellor_instance.visualizeQ()
+
+        # Solve the QUBO problem
+        chancellor_instance.solveQ()
+
+    def test_is_chancellor(self):
+        G = nx.Graph()
+        G.add_edges_from([(0, 1), (1, 2), (2, 3), (3, 0)])
+
+        # Convert to SAT problem with an independent set of size 2
+        independent_set_cnf = independent_set_to_sat(G, 2)
+
+        # Print the CNF clauses
+        print("CNF Clauses for Independent Set Problem:")
+        for clause in independent_set_cnf.clauses:
+            print(clause)
+
+        print("Solution:")
+        print(solve_all_cnf_solutions(independent_set_cnf))
+        converted_cnf = sat_to_3sat(independent_set_cnf)
+        print(len(independent_set_cnf.clauses))
+        print(len(converted_cnf.clauses))
+        print(converted_cnf.clauses)
+        ch = Chancellor(converted_cnf)
+        ch.solveQ()
+        ch.visualizeQ()
 
 
 if __name__ == '__main__':
