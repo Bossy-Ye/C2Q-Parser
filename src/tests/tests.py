@@ -159,10 +159,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_2_3sat(self):
         # Example usage:
-        cnf = [[-1, -2, -3],
-               [1,2,3,4],
-               [1,-2,4],
-               [2,-3],[3,-2],[4,5]]
+        cnf = [[-1, -2, -3]]
         converted_cnf = sat_to_3sat(cnf)
         print("Converted 3-SAT CNF:", converted_cnf.clauses)
 
@@ -176,7 +173,7 @@ class MyTestCase(unittest.TestCase):
         cha.solveQ()
         print("Original CNF solutions:", original_solutions)
         print("Converted CNF solutions:", converted_solutions)
-
+        cha.visualizeQ()
     def test_chancellor(self):
         # Define CNF formula using clauses
         clauses = [

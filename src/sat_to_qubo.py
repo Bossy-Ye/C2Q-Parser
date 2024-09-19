@@ -83,7 +83,7 @@ class Chancellor:
                 # Handling clauses with 2 literals (x1 ∨ x2)
                 self.add(c[0], c[0], -40)
                 self.add(c[1], c[1], -40)
-                self.add(c[0], c[1], 24)
+                self.add(c[0], c[1], 23)
             elif len(c) == 1:
                 # Handling clauses with 1 literal (x1)
                 self.add(c[0], c[0], -40)
