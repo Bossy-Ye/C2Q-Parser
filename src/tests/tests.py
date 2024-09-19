@@ -159,7 +159,10 @@ class MyTestCase(unittest.TestCase):
 
     def test_2_3sat(self):
         # Example usage:
-        cnf = [[-1, -2, -3]]
+        cnf = [[-1, -2, -3], [1, 2, 3], [1, -2, -3], [1, 3, -2], [-1, -2, 3], [2, 1, 4],
+               [-1, -3, -4], [2, 3, 4], [1, 3, 4], [1, -3, 4], [1, 3, 5], [3, 4, 5], [-2, -3, -5], [1, 2, -3],
+               [2, 4, 5], [2, 3, 5], [-1, -4, -5]]
+        cnf = [[1, 2, 3], [2, -3], [-2], [1, 2, 3, 4], [3, 4, 5], [2, 3, 4], [2, 3, 5], [3, 4, 6], [3, 4, -5, -6]]
         converted_cnf = sat_to_3sat(cnf)
         print("Converted 3-SAT CNF:", converted_cnf.clauses)
 
@@ -169,11 +172,12 @@ class MyTestCase(unittest.TestCase):
         converted_solutions = solve_all_cnf_solutions(converted_cnf)
         print(len(converted_solutions))
 
-        cha = Chancellor(converted_cnf)
+        cha = Chancellor(converted_cnf.clauses)
         cha.solveQ()
         print("Original CNF solutions:", original_solutions)
         print("Converted CNF solutions:", converted_solutions)
-        cha.visualizeQ()
+        cha.printQ()
+
     def test_chancellor(self):
         # Define CNF formula using clauses
         clauses = [
@@ -184,7 +188,6 @@ class MyTestCase(unittest.TestCase):
             [-3],
             [-2, 3, 4]
         ]
-
         # Create a CNF object from the clauses
         formula = CNF(from_clauses=clauses)
         print("solutions:")
@@ -207,11 +210,9 @@ class MyTestCase(unittest.TestCase):
 
     def test_is_chancellor(self):
         G = nx.Graph()
-        G.add_edges_from([(0, 1), (1, 2), (2, 3), (3, 0)])
-
+        G.add_edges_from([(0, 1), (1, 2), (2, 3), (3, 4)])
         # Convert to SAT problem with an independent set of size 2
-        independent_set_cnf = independent_set_to_sat(G, 2)
-
+        independent_set_cnf = independent_set_to_sat(G, 3)
         # Print the CNF clauses
         print("CNF Clauses for Independent Set Problem:")
         for clause in independent_set_cnf.clauses:
@@ -224,8 +225,9 @@ class MyTestCase(unittest.TestCase):
         print(len(converted_cnf.clauses))
         print(converted_cnf.clauses)
         ch = Chancellor(converted_cnf)
-        ch.solveQ()
+        ch.fillQ()
         ch.visualizeQ()
+        ch.solveQ()
 
 
 if __name__ == '__main__':
