@@ -7,6 +7,7 @@ import networkx as nx
 from src.graph import Graph
 from src.parser import Parser, CodeVisitor
 from src.reducer import *
+from src.chancellor import *
 
 class MyTestCase(unittest.TestCase):
     def setUp(self):
@@ -113,6 +114,11 @@ class MyTestCase(unittest.TestCase):
         print(f'clauses before conversion: {len(cnf.clauses)}')
         print(f'clauses after conversion: {len(sat.clauses)}')
         print(cnf.clauses)
+        print(sat.clauses)
+        print(solve_all_cnf_solutions(cnf))
+        cha = Chancellor(sat, sat.nv)
+        cha.fillQ()
+        #cha.solveQ()
 
     def test_clique(self):
         self.assertEqual(True,True)
@@ -153,10 +159,9 @@ class MyTestCase(unittest.TestCase):
 
     def test_2_3sat(self):
         # Example usage:
-        cnf = [[1, 2, 3, 4, -5, 6], [-1, -2, -3, -4], [-1, -2, 3, 4], [-1, -2, 3, -4], [1, 2], [-1, -2], [1, 3]]
+        cnf = [[-1, -2, -3, -4], [-1, -2, 3, 4], [-1, -2, 3, -4], [1, 2], [-1, -2], [1, 3]]
         converted_cnf = sat_to_3sat(cnf)
-
-        print("Converted 3-SAT CNF:", converted_cnf)
+        print("Converted 3-SAT CNF:", converted_cnf.clauses)
 
         # Find all solutions for the original and converted CNF
         original_solutions = solve_all_cnf_solutions(cnf)
@@ -164,6 +169,8 @@ class MyTestCase(unittest.TestCase):
         converted_solutions = solve_all_cnf_solutions(converted_cnf)
         print(len(converted_solutions))
 
+        cha = Chancellor(converted_cnf, converted_cnf.nv)
+        cha.solveQ()
         print("Original CNF solutions:", original_solutions)
         print("Converted CNF solutions:", converted_solutions)
 

@@ -1,6 +1,7 @@
 import networkx as nx
 from pysat.formula import CNF
 from pysat.solvers import Solver
+from collections import defaultdict
 
 
 def clique_to_sat(graph: nx.Graph, k: int) -> CNF:
@@ -111,3 +112,45 @@ def sat_to_3sat(cnf):
         new_clauses.append(clause)
 
     return CNF(from_clauses=new_clauses)
+
+
+def cnf_to_qubo(cnf, method="Chancellor"):
+    """
+    Converts a 3-SAT CNF formula to a QUBO formula based on the given rules.
+    Args:
+        cnf (CNF): The CNF formula object from the pysat library.
+
+    Returns:
+        dict: A dictionary representing the QUBO matrix, with keys as tuples (i, j)
+              and values as the coefficients for the QUBO objective function.
+    """
+    Q = defaultdict(float)  # To store the QUBO coefficients
+
+    for clause in cnf.clauses:
+        if len(clause) == 3:
+            x1, x2, x3 = clause
+            # QUBO formula for (x1 ∨ x2 ∨ x3)
+            Q[(abs(x1), abs(x1))] += -1 if x1 > 0 else 1
+            Q[(abs(x2), abs(x2))] += -1 if x2 > 0 else 1
+            Q[(abs(x3), abs(x3))] += -1 if x3 > 0 else 1
+            Q[(abs(x1), abs(x2))] += 1 if x1 > 0 and x2 > 0 else -1
+            Q[(abs(x1), abs(x3))] += 1 if x1 > 0 and x3 > 0 else -1
+            Q[(abs(x2), abs(x3))] += 1 if x2 > 0 and x3 > 0 else -1
+            Q[(abs(x1), abs(x2), abs(x3))] += -1 if x1 > 0 and x2 > 0 and x3 > 0 else 1
+        elif len(clause) == 2:
+            x1, x2 = clause
+            # QUBO formula for (x1 ∨ x2)
+            Q[(abs(x1), abs(x1))] += -1 if x1 > 0 else 1
+            Q[(abs(x2), abs(x2))] += -1 if x2 > 0 else 1
+            Q[(abs(x1), abs(x2))] += 1 if x1 > 0 and x2 > 0 else -1
+        elif len(clause) == 1:
+            x1 = clause[0]
+            # QUBO formula for (x1)
+            Q[(abs(x1), abs(x1))] += -1 if x1 > 0 else 1
+
+    return dict(Q)
+
+
+def qubo_to_ising(cnf):
+    return 1
+
