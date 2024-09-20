@@ -37,6 +37,29 @@ def independent_set_to_sat(graph: nx.Graph, k: int) -> CNF:
     return cnf
 
 
+def independent_set_to_sat2(graph: nx.Graph) -> CNF:
+    """
+    Converts an Independent Set problem into a SAT problem in CNF format.
+
+    Parameters:
+    - graph (nx.Graph): A NetworkX graph.
+
+    Returns:
+    - CNF: A CNF object representing the SAT problem.
+    """
+    cnf = CNF()
+    n = len(graph.nodes)
+
+    # Variables: x_i where i is the vertex index
+    var = lambda i: i + 1  # Variables indexed from 1
+
+    # Clause 1: For every edge (u, v), add a clause that at least one of them must not be in the independent set
+    for u, v in graph.edges():
+        cnf.append([-var(u), -var(v)])
+
+    return cnf
+
+
 def clique_to_sat(graph: nx.Graph, k: int) -> CNF:
     """
     Converts the k-Clique problem to a SAT problem.

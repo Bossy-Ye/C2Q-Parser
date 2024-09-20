@@ -2,11 +2,20 @@ import ast
 import unittest
 
 import networkx as nx
+from matplotlib import pyplot as plt
+from qiskit import QuantumCircuit, transpile, QuantumRegister, ClassicalRegister
+from qiskit.circuit.library import GroverOperator, MCMT, ZGate, MCXGate
+from qiskit.quantum_info import Statevector
+from qiskit.visualization import plot_histogram, plot_state_city
+from qiskit_aer import AerSimulator
 
 from src.graph import Graph
+from src.grover import grover
 from src.parser import Parser, CodeVisitor
+from src.problems.independent_set import IS
 from src.reducer import *
 from src.sat_to_qubo import *
+from src.circuits_library import *
 
 
 class MyTestCase(unittest.TestCase):
@@ -88,6 +97,14 @@ class MyTestCase(unittest.TestCase):
         self.assertIsInstance(data.graph, nx.Graph)
         data.visualize()
         self.assertEqual(nx.is_weighted(data.graph), True)
+        ism = IS(data, 2)
+        print(ism.sat.clauses)
+        print(solve_all_cnf_solutions(ism.sat))
+        ism.reduce_to_3sat()
+        counts = ism.grover()
+        print(counts)
+        plot_histogram(counts)
+        plt.show()
 
     def test_mul(self):
         problem_type, data = self.parser.parse(self.mul_snippet)
@@ -161,8 +178,8 @@ class MyTestCase(unittest.TestCase):
         # Example usage:
         cnf = [[-1, -2, -3], [1, 2, 3], [1, -2, -3], [1, 3, -2], [-1, -2, 3], [2, 1, 4],
                [-1, -3, -4], [2, 3, 4], [1, 3, 4], [1, -3, 4], [1, 3, 5], [3, 4, 5], [-2, -3, -5], [1, 2, -3],
-               [2, 4, 5], [2, 3, 5], [-1, -4, -5]]
-        cnf = [[1, 2, 3], [2, -3], [-2], [1, 2, 3, 4], [3, 4, 5], [2, 3, 4], [2, 3, 5], [3, 4, 6], [3, 4, -5, -6]]
+               [2, 4, 5], [2, 3, 5], [-1, -4, -5], [3, 4]]
+        #cnf = [[1, 2, 3], [2, -3], [-2], [1, 2, 3, 4], [3, 4, 5], [2, 3, 4], [2, 3, 5], [3, 4, 6], [3, 4, -5, -6]]
         converted_cnf = sat_to_3sat(cnf)
         print("Converted 3-SAT CNF:", converted_cnf.clauses)
 
@@ -228,6 +245,131 @@ class MyTestCase(unittest.TestCase):
         ch.fillQ()
         ch.visualizeQ()
         ch.solveQ()
+
+    def test_grover_operator(self):
+        # Example usage:
+
+        # Define the oracle for Grover's algorithm
+        # This oracle flips the phase of the state |11> (marked state)
+        num_qubits = 2
+        oracle = QuantumCircuit(num_qubits)
+        oracle.cz(0, 1)  # Apply a controlled-Z gate to the state |11>
+        oracle.name = "Oracle"
+
+        grover_circuit = grover(oracle, iterations=1)
+        backend = AerSimulator()
+
+        grover_circuit.draw('mpl')
+        transpiled_circuit = transpile(grover_circuit, backend=backend)
+        counts = backend.run(transpiled_circuit, shots=50000).result().get_counts()
+        plot_histogram(counts)
+        plt.show()
+
+    def test_cnf_circuits(self):
+        # Define CNF formula using clauses
+        clauses = [
+            [-1, -2], [-2, -3], [-3, -4], [1, 2, 3], [1, 2, 4], [1, 3, 4], [2, 3, 4]
+        ]
+        # Create a CNF object from the clauses
+        formula = CNF(from_clauses=clauses)
+        self.assertEqual(True, True)
+        qc = cnf_to_quantum_circuit_optimized(formula)
+        qc.measure_all()
+        combined_circuit = QuantumCircuit(qc.num_qubits)
+        combined_circuit.h([0, 1, 2, 3])
+        combined_circuit = combined_circuit.compose(qc)
+        backend = AerSimulator()
+        transpiled_circuit = transpile(combined_circuit, backend=backend)
+        counts = backend.run(transpiled_circuit, shots=50000).result().get_counts()
+        plot_histogram(counts)
+        plt.show()
+        print(counts)
+
+    def test_3sat_oracle(self):
+        # Sample CNF clauses for testing
+        clauses = [
+            [-1, -2], [-2, -3], [-3, -4], [1, 2, 3], [1, 2, 4], [1, 3, 4], [2, 3, 4]
+        ]
+
+        # Convert clauses to CNF formula
+        formula = CNF(from_clauses=clauses)
+        qc = cnf_to_quantum_oracle_optimized(formula)
+
+        combined_circuit = QuantumCircuit(qc.num_qubits)
+        #combined_circuit.h(range(formula.nv))
+        combined_circuit.x([1, 3])
+        combined_circuit = combined_circuit.compose(qc)
+
+        state = Statevector(combined_circuit)
+
+        # Print out the amplitudes and probabilities for each state
+        for idx, amplitude in enumerate(state):
+            binary_state = format(idx, f'0{qc.num_qubits}b')  # Convert index to binary representation
+            print(f"State {binary_state}: Amplitude = {amplitude}, Probability = {abs(amplitude) ** 2}")
+
+    def test_is_oracle(self):
+        problem_type, data = self.parser.parse(self.is_snippet)
+        print(problem_type, data)
+        # Convert to SAT problem with an independent set of size 2
+        independent_set_cnf = independent_set_to_sat(data.graph, 2)
+        oracle = cnf_to_quantum_oracle_optimized(independent_set_cnf)
+        combined_circuit = QuantumCircuit(oracle.num_qubits)
+        # combined_circuit.h(range(formula.nv))
+        combined_circuit.x([0, 2])
+        data.visualize()
+        combined_circuit = combined_circuit.compose(oracle)
+
+        state = Statevector(combined_circuit)
+
+        # Print out the amplitudes and probabilities for each state
+        for idx, amplitude in enumerate(state):
+            binary_state = format(idx, f'0{oracle.num_qubits}b')  # Convert index to binary representation
+            print(f"State {binary_state}: Amplitude = {amplitude}, Probability = {abs(amplitude) ** 2}")
+
+    def test_is_grover(self):
+        problem_type, data = self.parser.parse(self.is_snippet)
+        print(problem_type, data)
+        G = nx.Graph()
+        G.add_edges_from([(0, 1), (0, 2), (1, 2), (1, 3)])
+        # Convert to SAT problem with an independent set of size 2
+        independent_set_cnf = independent_set_to_sat(data.graph, 2)
+        oracle = cnf_to_quantum_oracle_optimized(independent_set_cnf)
+        grover_circuit = grover(oracle, objective_qubits=[0, 1, 2, 3], iterations=1)
+        from qiskit.circuit.library import GroverOperator
+        op = GroverOperator(oracle,
+                            reflection_qubits=[0, 1, 2, 3])
+        qr = QuantumRegister(op.num_qubits)
+        cr = ClassicalRegister(4)
+        circuit = QuantumCircuit(qr, cr)
+        circuit.h([0, 1, 2, 3])
+
+        circuit = circuit.compose(op)
+        circuit.measure([0, 1, 2, 3], cr)
+        print(solve_all_cnf_solutions(independent_set_cnf))
+        #print(op.decompose())
+        print(grover_circuit)
+        backend = AerSimulator()
+        transpiled_circuit = transpile(grover_circuit, backend=backend)
+        counts = backend.run(transpiled_circuit, shots=50000).result().get_counts()
+        plot_histogram(counts)
+        plt.show()
+        print(counts)
+
+    def test_cnf_grover(self):
+        cnf = [[-1, -2, -3], [1, 2, 3], [1, -2, -3], [1, 3, -2], [-1, -2, 3], [2, 1, 4],
+               [-1, -3, -4], [2, 3, 4], [1, 3, 4], [1, -3, 4], [1, 3, 5], [3, 4, 5], [-2, -3, -5], [1, 2, -3],
+               [2, 4, 5], [2, 3, 5], [-1, -4, -5], [3, 4]]
+
+        # Convert clauses to CNF formula
+        formula = CNF(from_clauses=cnf)
+        print(solve_all_cnf_solutions(formula))
+        oracle = cnf_to_quantum_oracle_optimized(formula)
+        grover_circuit = grover(oracle, iterations=3, objective_qubits=[0, 1, 2, 3, 4])
+        backend = AerSimulator()
+        transpiled_circuit = transpile(grover_circuit, backend=backend)
+        counts = backend.run(transpiled_circuit, shots=50000).result().get_counts()
+        plot_histogram(counts)
+        plt.show()
 
 
 if __name__ == '__main__':
